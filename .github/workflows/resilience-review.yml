@@ -1,0 +1,14 @@
+name: Resilience Review
+
+on:
+  pull_request:
+
+jobs:
+  resilience-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: shinagawa-web/resilience-review-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
