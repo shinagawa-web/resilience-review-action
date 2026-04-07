@@ -1,0 +1,155 @@
+version: 1
+
+rules:
+  - id: cache
+    name: "Cache Configuration"
+    triggers:
+      keywords: [ttl, TTL, cache_ttl, CACHE_TTL, max_size, expire, expiry, cache_size]
+      paths:
+        - "*cache*"
+        - "redis.conf"
+        - "memcached*"
+    checklist:
+      - If the cache backend (Redis/Memcached) goes down, will the service serve stale data indefinitely?
+      - If TTL is increased, is the risk of serving stale data during failures acceptable?
+      - Is there a fallback defined for cache misses (e.g., fall back to DB)?
+
+  - id: workers
+    name: "Concurrency / Worker Count"
+    triggers:
+      keywords:
+        - workers
+        - concurrency
+        - pool_size
+        - max_connections
+        - WEB_CONCURRENCY
+        - DB_POOL_SIZE
+        - thread_pool
+        - connection_pool
+      paths:
+        - "gunicorn*"
+        - "celery*"
+        - "sidekiq*"
+        - "puma*"
+        - "unicorn*"
+        - "*worker*"
+    checklist:
+      - Does the new worker count stay within the DB connection pool limit (workers × connections_per_worker ≤ pool_size)?
+      - Can downstream services (external APIs, queues) handle the increased concurrency?
+      - Is peak memory usage within the instance limit after this change?
+
+  - id: healthcheck
+    name: "Health Check"
+    triggers:
+      keywords:
+        - healthcheck
+        - health_check
+        - liveness
+        - readiness
+        - livenessProbe
+        - readinessProbe
+        - "/health"
+        - "/healthz"
+        - "/ping"
+      paths:
+        - "Dockerfile"
+        - "docker-compose*"
+        - "**/k8s/*.yaml"
+        - "**/k8s/*.yml"
+        - "*.tf"
+    checklist:
+      - Does the health check endpoint verify that the app can actually handle requests (DB connectivity, dependency reachability)?
+      - Are liveness and readiness probes correctly separated? (A failing liveness probe triggers a restart)
+      - Are the probe interval, timeout, and failureThreshold aligned with actual startup and recovery times?
+
+  - id: monitoring
+    name: "Monitoring Thresholds / Alerts"
+    triggers:
+      keywords:
+        - threshold
+        - alarm
+        - alert
+        - evaluation_periods
+        - period
+        - warning_threshold
+        - critical_threshold
+        - datapoints_to_alarm
+      paths:
+        - "**/monitoring/**"
+        - "**/alerts/**"
+        - "**/alerting/**"
+        - "*.tf"
+        - "*datadog*"
+        - "*cloudwatch*"
+        - "*prometheus*"
+        - "*grafana*"
+    checklist:
+      - If the threshold is relaxed, are there incident patterns that would no longer be detected?
+      - If evaluation_periods is increased, is the added detection delay acceptable?
+      - Would the new threshold have caught past incidents? Have you verified against historical data?
+
+  - id: instance
+    name: "Instance Type / Billing Model"
+    triggers:
+      keywords:
+        - instance_type
+        - machine_type
+        - vm_size
+        - node_type
+        - spot
+        - preemptible
+        - on_demand
+        - reserved
+      paths:
+        - "*.tf"
+        - "*.tfvars"
+        - "**/terraform/**"
+        - "*.yaml"
+        - "*.yml"
+    checklist:
+      - If switching to Spot/Preemptible instances, is the service designed to handle sudden termination?
+      - If downgrading instance type, is there enough CPU/memory headroom at peak load?
+      - Can a replacement instance be automatically launched during failover?
+
+  - id: replicas
+    name: "Replica Count / AZ Configuration"
+    triggers:
+      keywords:
+        - replicas
+        - replica_count
+        - availability_zones
+        - multi_az
+        - az_count
+        - desired_count
+        - min_size
+        - min_capacity
+        - replication_factor
+      paths:
+        - "*.tf"
+        - "*.tfvars"
+        - "**/k8s/*.yaml"
+        - "**/k8s/*.yml"
+        - "docker-compose*"
+    checklist:
+      - If reducing replicas, can the service remain available when one instance fails? (minimum 2 replicas or HPA configured)
+      - Is the deployment spread across multiple AZs? A single-AZ setup risks total outage on AZ failure.
+      - If reducing DB read replicas, can the primary handle the full read load?
+
+  - id: timeout
+    name: "Timeout Values"
+    triggers:
+      keywords:
+        - timeout
+        - connect_timeout
+        - read_timeout
+        - write_timeout
+        - idle_timeout
+        - request_timeout
+        - socket_timeout
+        - connection_timeout
+        - TIMEOUT
+      paths: []  # match any file
+    checklist:
+      - If increasing timeout, is it still shorter than the upstream caller's timeout? (A longer timeout than the caller's is wasted)
+      - If decreasing timeout, is p99 response time comfortably below the new timeout value?
+      - Is there a retry policy for timeout failures? Without retries, timeouts surface directly as errors.
