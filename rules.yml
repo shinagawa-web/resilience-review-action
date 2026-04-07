@@ -2,7 +2,7 @@ version: 1
 
 rules:
   - id: cache
-    name: "キャッシュ設定"
+    name: "Cache Configuration"
     triggers:
       keywords: [ttl, TTL, cache_ttl, CACHE_TTL, max_size, expire, expiry, cache_size]
       paths:
@@ -10,12 +10,12 @@ rules:
         - "redis.conf"
         - "memcached*"
     checklist:
-      - キャッシュ元（Redis/Memcached等）が落ちたとき、古いデータで動き続けないか
-      - TTLを延ばした場合、障害時に古い状態が長時間残るリスクを許容できるか
-      - キャッシュミス時のフォールバック（直接DBに問い合わせる等）が設計されているか
+      - If the cache backend (Redis/Memcached) goes down, will the service serve stale data indefinitely?
+      - If TTL is increased, is the risk of serving stale data during failures acceptable?
+      - Is there a fallback defined for cache misses (e.g., fall back to DB)?
 
   - id: workers
-    name: "並列数・ワーカー数"
+    name: "Concurrency / Worker Count"
     triggers:
       keywords:
         - workers
@@ -34,12 +34,12 @@ rules:
         - "unicorn*"
         - "*worker*"
     checklist:
-      - DB接続プールの上限を超えていないか（変更後のworker数 × DB接続数がプール上限以内か）
-      - 下流サービス（外部API等）の受け入れ上限と整合しているか
-      - メモリ使用量がインスタンスの上限を超えないか見積もっているか
+      - Does the new worker count stay within the DB connection pool limit (workers × connections_per_worker ≤ pool_size)?
+      - Can downstream services (external APIs, queues) handle the increased concurrency?
+      - Is peak memory usage within the instance limit after this change?
 
   - id: healthcheck
-    name: "ヘルスチェック"
+    name: "Health Check"
     triggers:
       keywords:
         - healthcheck
@@ -58,12 +58,12 @@ rules:
         - "**/k8s/*.yml"
         - "*.tf"
     checklist:
-      - ヘルスチェックエンドポイントが「アプリが正常にリクエストを処理できる状態」を正しく判定しているか（DB接続・依存サービスの疎通を含むか）
-      - liveness と readiness の役割が正しく分かれているか（livenessが失敗するとPodが再起動される）
-      - ヘルスチェックの間隔・タイムアウト・failureThresholdが実際の起動時間・回復時間と整合しているか
+      - Does the health check endpoint verify that the app can actually handle requests (DB connectivity, dependency reachability)?
+      - Are liveness and readiness probes correctly separated? (A failing liveness probe triggers a restart)
+      - Are the probe interval, timeout, and failureThreshold aligned with actual startup and recovery times?
 
   - id: monitoring
-    name: "監視しきい値・アラート"
+    name: "Monitoring Thresholds / Alerts"
     triggers:
       keywords:
         - threshold
@@ -84,12 +84,12 @@ rules:
         - "*prometheus*"
         - "*grafana*"
     checklist:
-      - しきい値を緩めた場合、検知できなくなるインシデントパターンはないか
-      - アラートの評価期間（evaluation_periods）を延ばした場合、検知までの遅延を許容できるか
-      - 変更後のしきい値で、過去の実際のインシデントを検知できるか確認したか
+      - If the threshold is relaxed, are there incident patterns that would no longer be detected?
+      - If evaluation_periods is increased, is the added detection delay acceptable?
+      - Would the new threshold have caught past incidents? Have you verified against historical data?
 
   - id: instance
-    name: "インスタンスタイプ・課金モデル"
+    name: "Instance Type / Billing Model"
     triggers:
       keywords:
         - instance_type
@@ -107,12 +107,12 @@ rules:
         - "*.yaml"
         - "*.yml"
     checklist:
-      - スポット/プリエンプティブルインスタンスに変更する場合、突然の停止を想定した設計になっているか
-      - インスタンスタイプのダウングレード時、ピーク負荷時のメモリ・CPU余裕を確認したか
-      - フェイルオーバー時に代替インスタンスが自動起動できる構成になっているか
+      - If switching to Spot/Preemptible instances, is the service designed to handle sudden termination?
+      - If downgrading instance type, is there enough CPU/memory headroom at peak load?
+      - Can a replacement instance be automatically launched during failover?
 
   - id: replicas
-    name: "レプリカ数・AZ設定"
+    name: "Replica Count / AZ Configuration"
     triggers:
       keywords:
         - replicas
@@ -131,12 +131,12 @@ rules:
         - "**/k8s/*.yml"
         - "docker-compose*"
     checklist:
-      - レプリカ数を減らした場合、1台障害時にサービス継続できるか（最低2台 or HPA設定があるか）
-      - 単一AZ構成になっていないか（AZ障害時に全滅するリスク）
-      - DBのレプリカ削減時、読み取り負荷をプライマリのみで賄えるか確認したか
+      - If reducing replicas, can the service remain available when one instance fails? (minimum 2 replicas or HPA configured)
+      - Is the deployment spread across multiple AZs? A single-AZ setup risks total outage on AZ failure.
+      - If reducing DB read replicas, can the primary handle the full read load?
 
   - id: timeout
-    name: "タイムアウト値"
+    name: "Timeout Values"
     triggers:
       keywords:
         - timeout
@@ -148,8 +148,8 @@ rules:
         - socket_timeout
         - connection_timeout
         - TIMEOUT
-      paths: []  # パス問わずdiff全体を対象
+      paths: []  # match any file
     checklist:
-      - タイムアウトを延ばした場合、上流サービスのタイムアウトより短いか（上流が先にタイムアウトすると延ばしても意味がない）
-      - タイムアウトを縮めた場合、正常時のレスポンスタイム（p99）がタイムアウト値より十分短いか
-      - タイムアウト発生時のリトライ設計があるか（リトライがない場合、タイムアウトはそのままエラーになる）
+      - If increasing timeout, is it still shorter than the upstream caller's timeout? (A longer timeout than the caller's is wasted)
+      - If decreasing timeout, is p99 response time comfortably below the new timeout value?
+      - Is there a retry policy for timeout failures? Without retries, timeouts surface directly as errors.
