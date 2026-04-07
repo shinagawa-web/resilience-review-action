@@ -1,0 +1,155 @@
+version: 1
+
+rules:
+  - id: cache
+    name: "キャッシュ設定"
+    triggers:
+      keywords: [ttl, TTL, cache_ttl, CACHE_TTL, max_size, expire, expiry, cache_size]
+      paths:
+        - "*cache*"
+        - "redis.conf"
+        - "memcached*"
+    checklist:
+      - キャッシュ元（Redis/Memcached等）が落ちたとき、古いデータで動き続けないか
+      - TTLを延ばした場合、障害時に古い状態が長時間残るリスクを許容できるか
+      - キャッシュミス時のフォールバック（直接DBに問い合わせる等）が設計されているか
+
+  - id: workers
+    name: "並列数・ワーカー数"
+    triggers:
+      keywords:
+        - workers
+        - concurrency
+        - pool_size
+        - max_connections
+        - WEB_CONCURRENCY
+        - DB_POOL_SIZE
+        - thread_pool
+        - connection_pool
+      paths:
+        - "gunicorn*"
+        - "celery*"
+        - "sidekiq*"
+        - "puma*"
+        - "unicorn*"
+        - "*worker*"
+    checklist:
+      - DB接続プールの上限を超えていないか（変更後のworker数 × DB接続数がプール上限以内か）
+      - 下流サービス（外部API等）の受け入れ上限と整合しているか
+      - メモリ使用量がインスタンスの上限を超えないか見積もっているか
+
+  - id: healthcheck
+    name: "ヘルスチェック"
+    triggers:
+      keywords:
+        - healthcheck
+        - health_check
+        - liveness
+        - readiness
+        - livenessProbe
+        - readinessProbe
+        - "/health"
+        - "/healthz"
+        - "/ping"
+      paths:
+        - "Dockerfile"
+        - "docker-compose*"
+        - "**/k8s/*.yaml"
+        - "**/k8s/*.yml"
+        - "*.tf"
+    checklist:
+      - ヘルスチェックエンドポイントが「アプリが正常にリクエストを処理できる状態」を正しく判定しているか（DB接続・依存サービスの疎通を含むか）
+      - liveness と readiness の役割が正しく分かれているか（livenessが失敗するとPodが再起動される）
+      - ヘルスチェックの間隔・タイムアウト・failureThresholdが実際の起動時間・回復時間と整合しているか
+
+  - id: monitoring
+    name: "監視しきい値・アラート"
+    triggers:
+      keywords:
+        - threshold
+        - alarm
+        - alert
+        - evaluation_periods
+        - period
+        - warning_threshold
+        - critical_threshold
+        - datapoints_to_alarm
+      paths:
+        - "**/monitoring/**"
+        - "**/alerts/**"
+        - "**/alerting/**"
+        - "*.tf"
+        - "*datadog*"
+        - "*cloudwatch*"
+        - "*prometheus*"
+        - "*grafana*"
+    checklist:
+      - しきい値を緩めた場合、検知できなくなるインシデントパターンはないか
+      - アラートの評価期間（evaluation_periods）を延ばした場合、検知までの遅延を許容できるか
+      - 変更後のしきい値で、過去の実際のインシデントを検知できるか確認したか
+
+  - id: instance
+    name: "インスタンスタイプ・課金モデル"
+    triggers:
+      keywords:
+        - instance_type
+        - machine_type
+        - vm_size
+        - node_type
+        - spot
+        - preemptible
+        - on_demand
+        - reserved
+      paths:
+        - "*.tf"
+        - "*.tfvars"
+        - "**/terraform/**"
+        - "*.yaml"
+        - "*.yml"
+    checklist:
+      - スポット/プリエンプティブルインスタンスに変更する場合、突然の停止を想定した設計になっているか
+      - インスタンスタイプのダウングレード時、ピーク負荷時のメモリ・CPU余裕を確認したか
+      - フェイルオーバー時に代替インスタンスが自動起動できる構成になっているか
+
+  - id: replicas
+    name: "レプリカ数・AZ設定"
+    triggers:
+      keywords:
+        - replicas
+        - replica_count
+        - availability_zones
+        - multi_az
+        - az_count
+        - desired_count
+        - min_size
+        - min_capacity
+        - replication_factor
+      paths:
+        - "*.tf"
+        - "*.tfvars"
+        - "**/k8s/*.yaml"
+        - "**/k8s/*.yml"
+        - "docker-compose*"
+    checklist:
+      - レプリカ数を減らした場合、1台障害時にサービス継続できるか（最低2台 or HPA設定があるか）
+      - 単一AZ構成になっていないか（AZ障害時に全滅するリスク）
+      - DBのレプリカ削減時、読み取り負荷をプライマリのみで賄えるか確認したか
+
+  - id: timeout
+    name: "タイムアウト値"
+    triggers:
+      keywords:
+        - timeout
+        - connect_timeout
+        - read_timeout
+        - write_timeout
+        - idle_timeout
+        - request_timeout
+        - socket_timeout
+        - connection_timeout
+        - TIMEOUT
+      paths: []  # パス問わずdiff全体を対象
+    checklist:
+      - タイムアウトを延ばした場合、上流サービスのタイムアウトより短いか（上流が先にタイムアウトすると延ばしても意味がない）
+      - タイムアウトを縮めた場合、正常時のレスポンスタイム（p99）がタイムアウト値より十分短いか
+      - タイムアウト発生時のリトライ設計があるか（リトライがない場合、タイムアウトはそのままエラーになる）
