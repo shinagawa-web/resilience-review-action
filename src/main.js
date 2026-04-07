@@ -8,7 +8,15 @@ const { minimatch } = require('minimatch');
 async function run() {
   try {
     const token = core.getInput('github-token');
-    const rulesPath = core.getInput('rules-path') || path.join(__dirname, '..', 'rules.yml');
+    const output = core.getInput('output') || 'comment';
+    const locale = core.getInput('locale') || 'en';
+
+    // Resolve rules file: custom path > locale-specific built-in > default built-in
+    let rulesPath = core.getInput('rules-path');
+    if (!rulesPath) {
+      const localeFile = locale === 'ja' ? 'rules.ja.yml' : 'rules.yml';
+      rulesPath = path.join(__dirname, '..', localeFile);
+    }
 
     const octokit = github.getOctokit(token);
     const context = github.context;
@@ -79,7 +87,7 @@ async function run() {
       return;
     }
 
-    // Build PR comment
+    // Build checklist body
     const lines = [
       '## Resilience Review',
       '',
@@ -99,14 +107,30 @@ async function run() {
     lines.push('---');
     lines.push('*Posted by [resilience-review-action](https://github.com/shinagawa-web/resilience-review-action)*');
 
-    await octokit.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: pull_number,
-      body: lines.join('\n'),
-    });
+    const body = lines.join('\n');
 
-    core.info(`Resilience review posted: ${triggered.map(r => r.name).join(', ')}`);
+    if (output === 'pr-body') {
+      // Append checklist to PR description
+      const { data: pr } = await octokit.rest.pulls.get({ owner, repo, pull_number });
+      const existingBody = pr.body || '';
+      const separator = existingBody.trim() ? '\n\n---\n\n' : '';
+      await octokit.rest.pulls.update({
+        owner,
+        repo,
+        pull_number,
+        body: existingBody + separator + body,
+      });
+      core.info(`Resilience review appended to PR body: ${triggered.map(r => r.name).join(', ')}`);
+    } else {
+      // Post as PR comment (default)
+      await octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: pull_number,
+        body,
+      });
+      core.info(`Resilience review posted as comment: ${triggered.map(r => r.name).join(', ')}`);
+    }
 
   } catch (error) {
     core.setFailed(error.message);

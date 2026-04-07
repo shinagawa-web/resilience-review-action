@@ -56,7 +56,6 @@ rules:
         - "docker-compose*"
         - "**/k8s/*.yaml"
         - "**/k8s/*.yml"
-        - "*.tf"
     checklist:
       - Does the health check endpoint verify that the app can actually handle requests (DB connectivity, dependency reachability)?
       - Are liveness and readiness probes correctly separated? (A failing liveness probe triggers a restart)
@@ -68,9 +67,7 @@ rules:
       keywords:
         - threshold
         - alarm
-        - alert
         - evaluation_periods
-        - period
         - warning_threshold
         - critical_threshold
         - datapoints_to_alarm
@@ -78,7 +75,6 @@ rules:
         - "**/monitoring/**"
         - "**/alerts/**"
         - "**/alerting/**"
-        - "*.tf"
         - "*datadog*"
         - "*cloudwatch*"
         - "*prometheus*"
@@ -98,14 +94,8 @@ rules:
         - node_type
         - spot
         - preemptible
-        - on_demand
-        - reserved
       paths:
-        - "*.tf"
         - "*.tfvars"
-        - "**/terraform/**"
-        - "*.yaml"
-        - "*.yml"
     checklist:
       - If switching to Spot/Preemptible instances, is the service designed to handle sudden termination?
       - If downgrading instance type, is there enough CPU/memory headroom at peak load?
@@ -125,8 +115,6 @@ rules:
         - min_capacity
         - replication_factor
       paths:
-        - "*.tf"
-        - "*.tfvars"
         - "**/k8s/*.yaml"
         - "**/k8s/*.yml"
         - "docker-compose*"
@@ -148,7 +136,7 @@ rules:
         - socket_timeout
         - connection_timeout
         - TIMEOUT
-      paths: []  # match any file
+      paths: []
     checklist:
       - If increasing timeout, is it still shorter than the upstream caller's timeout? (A longer timeout than the caller's is wasted)
       - If decreasing timeout, is p99 response time comfortably below the new timeout value?

@@ -14,6 +14,14 @@ inputs:
   rules-path:
     description: 'Path to a custom rules YAML file. Defaults to the built-in ruleset.'
     required: false
+  output:
+    description: 'Where to post the checklist. "comment" (default) posts as a PR comment. "pr-body" appends to the PR description.'
+    required: false
+    default: 'comment'
+  locale:
+    description: 'Language for the checklist. "en" (default) or "ja".'
+    required: false
+    default: 'en'
 
 runs:
   using: 'node20'
