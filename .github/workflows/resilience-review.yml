@@ -4,7 +4,8 @@ on:
   pull_request:
 
 jobs:
-  resilience-review:
+  resilience-review-en:
+    name: "Resilience Review (en)"
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -12,3 +13,15 @@ jobs:
       - uses: shinagawa-web/resilience-review-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          locale: en
+
+  resilience-review-ja:
+    name: "Resilience Review (ja)"
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: shinagawa-web/resilience-review-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          locale: ja
