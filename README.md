@@ -55,14 +55,41 @@ That's it. No configuration needed. The ruleset is built in.
 > - [ ] If reducing replicas, can the service remain available when one instance fails?
 > - [ ] Is the deployment spread across multiple AZs?
 
-## Customization
+## Options
 
-By default, the built-in `rules.yml` is used. To use your own ruleset, pass a `rules-path` input:
+| Input | Description | Default |
+|---|---|---|
+| `github-token` | GitHub token for posting PR comments | `${{ github.token }}` |
+| `output` | Where to post the checklist: `comment` or `pr-body` | `comment` |
+| `locale` | Language for the checklist: `en` or `ja` | `en` |
+| `rules-path` | Path to a custom rules YAML file (requires `actions/checkout`) | Built-in ruleset |
+
+### Post checklist to PR description instead of a comment
 
 ```yaml
 - uses: shinagawa-web/resilience-review-action@v1
   with:
-    rules-path: .github/resilience-rules.yml
+    output: pr-body
+```
+
+### Use Japanese checklist
+
+```yaml
+- uses: shinagawa-web/resilience-review-action@v1
+  with:
+    locale: ja
+```
+
+### Use a custom ruleset
+
+By default, the built-in `rules.yml` is used. To use your own ruleset, check out the repository first and pass a `rules-path` input:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - uses: shinagawa-web/resilience-review-action@v1
+    with:
+      rules-path: .github/resilience-rules.yml
 ```
 
 ## License
