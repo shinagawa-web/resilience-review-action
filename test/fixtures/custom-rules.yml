@@ -1,0 +1,11 @@
+version: 1
+
+rules:
+  - id: custom-timeout
+    name: "Custom: Timeout Check"
+    triggers:
+      keywords: [timeout]
+      paths: []
+    checklist:
+      - This is a custom rule to verify rules-path works correctly
+      - If you see this checklist, custom rules loading is working
