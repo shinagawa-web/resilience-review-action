@@ -4,8 +4,9 @@ on:
   pull_request:
 
 jobs:
-  resilience-review-en:
-    name: "Resilience Review (en)"
+  # Test 1: default (output: comment, built-in rules, en)
+  test-comment-default:
+    name: "Test: comment + default rules (en)"
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -15,8 +16,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           locale: en
 
-  resilience-review-ja:
-    name: "Resilience Review (ja)"
+  # Test 2: locale ja
+  test-locale-ja:
+    name: "Test: comment + default rules (ja)"
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -25,3 +27,28 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           locale: ja
+
+  # Test 3: output: pr-body
+  test-pr-body:
+    name: "Test: output to PR body"
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: shinagawa-web/resilience-review-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          output: pr-body
+
+  # Test 4: custom rules-path
+  test-custom-rules:
+    name: "Test: custom rules-path"
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shinagawa-web/resilience-review-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          rules-path: test/fixtures/custom-rules.yml
