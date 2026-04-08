@@ -189,4 +189,6 @@ async function postToPrBody(octokit, owner, repo, pull_number, body) {
 
 module.exports = { matchRules, buildChecklist };
 
-run();
+if (require.main === module) {
+  run();
+}
